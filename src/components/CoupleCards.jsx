@@ -26,7 +26,15 @@ function CoupleCards({ onBack }) {
 
     const fetchData = async () => {
         try {
-            const res = await fetch('/api/cards');
+            // Try dev API first
+            let res = await fetch('/api/cards');
+
+            // If API fails (on production), fallback to static file in public/
+            if (!res.ok) {
+                console.log("Dev API not available, falling back to static fetch...");
+                res = await fetch('/questions.json');
+            }
+
             const data = await res.json();
             setCategories(data.categories || []);
             setQuestions(data.questions || []);

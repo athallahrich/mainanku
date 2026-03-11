@@ -9,7 +9,7 @@ const localDbPlugin = () => ({
   configureServer(server) {
     server.middlewares.use(async (req, res, next) => {
       if (req.url === '/api/cards') {
-        const dbPath = path.resolve(__dirname, 'db/questions.json')
+        const dbPath = path.resolve(__dirname, 'public/questions.json')
 
         if (req.method === 'GET') {
           const data = fs.readFileSync(dbPath, 'utf8')
