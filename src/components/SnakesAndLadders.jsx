@@ -186,6 +186,53 @@ function SnakesAndLadders({ onBack }) {
     const [isMoving, setIsMoving] = useState(false);
     const [message, setMessage] = useState('Lempar dadu untuk mulai!');
     const [selectingPlayer, setSelectingPlayer] = useState(0);
+    const [challengeHistory, setChallengeHistory] = useState([]);
+    const [showChallengePopup, setShowChallengePopup] = useState(false);
+
+    // Load game state on mount
+    useEffect(() => {
+        const saved = localStorage.getItem('sal_game_state');
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                setGameStarted(data.gameStarted);
+                setPlayers(data.players);
+                setCurrentPlayer(data.currentPlayer);
+                setDiceValue(data.diceValue);
+                setActiveChallenge(data.activeChallenge);
+                setTimer(data.timer);
+                setWinner(data.winner);
+                setMessage(data.message);
+                setSelectingPlayer(data.selectingPlayer);
+                setChallengeHistory(data.challengeHistory || []);
+                setShowChallengePopup(data.showChallengePopup || false);
+            } catch (e) {
+                console.error("Failed to load game state", e);
+            }
+        }
+    }, []);
+
+    // Save game state on changes
+    useEffect(() => {
+        if (!gameStarted && players.every(p => p.position === 0) && !winner) {
+            // Initial state, maybe don't save or clear
+            return;
+        }
+        const state = {
+            gameStarted,
+            players,
+            currentPlayer,
+            diceValue,
+            activeChallenge,
+            timer,
+            winner,
+            message,
+            selectingPlayer,
+            challengeHistory,
+            showChallengePopup
+        };
+        localStorage.setItem('sal_game_state', JSON.stringify(state));
+    }, [gameStarted, players, currentPlayer, diceValue, activeChallenge, timer, winner, message, selectingPlayer, challengeHistory, showChallengePopup]);
 
     const selectCharacter = (char) => {
         setPlayers(prev => prev.map((p, i) =>
@@ -205,11 +252,67 @@ function SnakesAndLadders({ onBack }) {
         return () => clearInterval(id);
     }, [activeChallenge, timer]);
 
-    const completeChallenge = () => {
+    const completeChallenge = (status = '✅ Selesai') => {
+        if (activeChallenge) {
+            const entry = {
+                text: activeChallenge.text,
+                player: players[currentPlayer].name,
+                status: status,
+                timeLeft: activeChallenge.duration > 0 ? timer : null,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                challenge: activeChallenge, // Store full challenge data for reopening
+                turnIndex: currentPlayer // Correct turn for this challenge
+            };
+
+            // Replace ongoing entry if it exists
+            setChallengeHistory(prev => {
+                const filtered = prev.filter(h => !(h.status === '⏳ Ongoing' && h.text === activeChallenge.text));
+                return [entry, ...filtered].slice(0, 10);
+            });
+        }
+
         setActiveChallenge(null);
+        setShowChallengePopup(false);
         setTimer(0);
         setCurrentPlayer(p => (p + 1) % 2);
         setMessage(`Giliran ${players[(currentPlayer + 1) % 2].name}!`);
+    };
+
+    const minimizeChallenge = () => {
+        if (activeChallenge) {
+            // Check if already in history as "Ongoing"
+            const exists = challengeHistory.some(h => h.status === '⏳ Ongoing' && h.text === activeChallenge.text);
+            if (!exists) {
+                const entry = {
+                    text: activeChallenge.text,
+                    player: players[currentPlayer].name,
+                    status: '⏳ Ongoing',
+                    timeLeft: activeChallenge.duration > 0 ? timer : null,
+                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    challenge: activeChallenge,
+                    isOngoing: true,
+                    turnIndex: currentPlayer
+                };
+                setChallengeHistory(prev => [entry, ...prev].slice(0, 10));
+            }
+        }
+        setShowChallengePopup(false);
+    };
+
+    const reopenChallenge = (index) => {
+        const item = challengeHistory[index];
+        if (item.status === '⏳ Ongoing') {
+            // It's the current active one, just show it
+            setActiveChallenge(item.challenge);
+            setShowChallengePopup(true);
+        } else {
+            // It's a past one, maybe just show it read-only or ignore for now
+            // For now, let's allow reopening only if it was the last active one
+            // or just show the popup with the data.
+            setActiveChallenge(item.challenge);
+            setShowChallengePopup(true);
+            // If it was finished, buttons will be disabled or it will just be a view
+        }
     };
 
     const rollDice = () => {
@@ -242,7 +345,10 @@ function SnakesAndLadders({ onBack }) {
             setPlayers(prev => prev.map((p, i) => i === currentPlayer ? { ...p, position: pos } : p));
             if (step >= steps) {
                 clearInterval(interval);
-                setTimeout(() => handleLanding(pos), 300);
+                setTimeout(() => {
+                    handleLanding(pos);
+                    setShowChallengePopup(true); // Open modal on landing
+                }, 300);
             }
         }, 200);
     };
@@ -286,6 +392,8 @@ function SnakesAndLadders({ onBack }) {
     };
 
     const resetGame = () => {
+        if (!confirm("Reset game ini dari awal? Semua progress akan hilang.")) return;
+        localStorage.removeItem('sal_game_state');
         setPlayers([
             { position: 0, name: 'Player 1', color: '#ff69b4', char: null },
             { position: 0, name: 'Player 2', color: '#4169e1', char: null },
@@ -293,6 +401,8 @@ function SnakesAndLadders({ onBack }) {
         setCurrentPlayer(0); setDiceValue(null); setWinner(null);
         setActiveChallenge(null); setTimer(0); setMessage('Lempar dadu untuk mulai!');
         setGameStarted(false); setSelectingPlayer(0);
+        setChallengeHistory([]);
+        setShowChallengePopup(false);
     };
 
     const renderBoard = () => {
@@ -364,7 +474,10 @@ function SnakesAndLadders({ onBack }) {
         const usedChars = players.filter(p => p.char).map(p => p.char.id);
         return (
             <div className="game-wrapper">
-                <button className="back-button" onClick={onBack}>← Back to Dashboard</button>
+                <div className="sal-top-btns">
+                    <button className="back-button" onClick={onBack}>← Back to Dashboard</button>
+                    {gameStarted && <button className="sal-reset-top" onClick={resetGame}>🔄 Reset Game</button>}
+                </div>
                 <div className="sal-char-select">
                     <h2 className="sal-title">🎲 Pilih Karakter</h2>
                     <p className="sal-char-subtitle">
@@ -393,7 +506,10 @@ function SnakesAndLadders({ onBack }) {
 
     return (
         <div className="game-wrapper">
-            <button className="back-button" onClick={onBack}>← Back to Dashboard</button>
+            <div className="sal-top-btns">
+                <button className="back-button" onClick={onBack}>← Back to Dashboard</button>
+                <button className="sal-reset-top" onClick={resetGame}>🔄 Reset Game</button>
+            </div>
             <div className="sal-game">
                 <div className="sal-board-wrap">
                     <div className="sal-board">{renderBoard()}<BoardOverlay /></div>
@@ -414,13 +530,50 @@ function SnakesAndLadders({ onBack }) {
                         <Dice value={diceValue} isRolling={isRolling} />
                         <div className="sal-roll-text">{isRolling ? 'Rolling...' : winner ? 'Game Over!' : 'Klik untuk lempar!'}</div>
                     </div>
+
+                    {/* Challenge History */}
+                    <div className="sal-history card-glass">
+                        <h3>📜 Riwayat Tantangan</h3>
+                        <div className="sal-history-list">
+                            {challengeHistory.length > 0 ? (
+                                challengeHistory.map((h, i) => {
+                                    const isOngoing = h.status === '⏳ Ongoing';
+                                    return (
+                                        <div
+                                            key={i}
+                                            className={`sal-history-item ${isOngoing ? 'ongoing' : ''} clickable`}
+                                            onClick={() => reopenChallenge(i)}
+                                        >
+                                            <div className="item-head">
+                                                <span className="item-p">{h.player}</span>
+                                                <span className={`item-status ${h.status.includes('Skip') ? 'skipped' : h.status.includes('Tutup') ? 'closed' : ''}`}>{h.status}</span>
+                                            </div>
+                                            <div className="item-body">
+                                                <p>{h.text}</p>
+                                                {h.timeLeft !== null && (
+                                                    <span className="item-time">
+                                                        Sisa: {isOngoing ? `${timer}s` : `${h.timeLeft}s`}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {isOngoing && <div className="ongoing-indicator">Resume ↺</div>}
+                                        </div>
+                                    );
+                                })
+                            ) : (
+                                <p className="no-history">Belum ada riwayat.</p>
+                            )}
+                        </div>
+                    </div>
+
                     {winner && <button className="sal-reset" onClick={resetGame}>🔄 Main Lagi</button>}
                 </div>
             </div>
 
-            {activeChallenge && (
+            {activeChallenge && showChallengePopup && (
                 <div className="sal-overlay-bg">
                     <div className="sal-popup">
+                        <button className="sal-close-ch" onClick={minimizeChallenge}>×</button>
                         <h3>🔥 Challenge!</h3>
                         <p className="sal-ch-text">{activeChallenge.text}</p>
                         {activeChallenge.duration > 0 && (
@@ -433,9 +586,14 @@ function SnakesAndLadders({ onBack }) {
                                 </div>
                             </div>
                         )}
-                        <button className="sal-ch-btn" onClick={completeChallenge} disabled={timer > 0}>
-                            {timer > 0 ? `Tunggu ${timer}s...` : '✅ Selesai!'}
-                        </button>
+                        <div className="sal-popup-actions">
+                            <button className="sal-ch-btn" onClick={() => completeChallenge('✅ Selesai')} disabled={timer > 0}>
+                                {timer > 0 ? `Tunggu ${timer}s...` : 'Selesai'}
+                            </button>
+                            {timer > 0 && (
+                                <button className="sal-skip-btn" onClick={() => completeChallenge('⏭️ Skipped')}>Skip</button>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}

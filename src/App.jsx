@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Dashboard from './components/Dashboard';
 import BeanBoozled from './components/BeanBoozled';
 import SnakesAndLadders from './components/SnakesAndLadders';
@@ -6,7 +6,13 @@ import CoupleCards from './components/CoupleCards';
 import './index.css';
 
 function App() {
-  const [activeGame, setActiveGame] = useState('dashboard');
+  const [activeGame, setActiveGame] = useState(() => {
+    return localStorage.getItem('active_game') || 'dashboard';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('active_game', activeGame);
+  }, [activeGame]);
 
   return (
     <div className="app-root">

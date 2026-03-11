@@ -1,94 +1,69 @@
-import React, { useState } from 'react';
-
-const CATEGORIES = [
-    { id: 'love', label: '❤️ Cinta', color: '#e74c3c' },
-    { id: 'dream', label: '✨ Mimpi', color: '#9b59b6' },
-    { id: 'memory', label: '📸 Kenangan', color: '#3498db' },
-    { id: 'deep', label: '💭 Deep Talk', color: '#2c3e50' },
-    { id: 'fun', label: '😂 Seru', color: '#e67e22' },
-    { id: 'spicy', label: '🔥 Spicy', color: '#c0392b' },
-];
-
-const QUESTIONS = [
-    // ❤️ Cinta
-    { q: "Kapan pertama kali kamu merasa jatuh cinta sama aku?", cat: "love" },
-    { q: "Apa hal kecil yang aku lakukan yang bikin kamu paling bahagia?", cat: "love" },
-    { q: "Kalau bisa mengulang satu momen romantis kita, momen mana yang kamu pilih?", cat: "love" },
-    { q: "Apa love language kamu yang paling dominan?", cat: "love" },
-    { q: "Gimana rasanya waktu pertama kali kita pegangan tangan?", cat: "love" },
-    { q: "Apa yang bikin kamu yakin bahwa aku adalah orang yang tepat?", cat: "love" },
-    { q: "Sebutkan 3 hal yang paling kamu cintai dari aku!", cat: "love" },
-    { q: "Apa kata-kata paling romantis yang pernah aku ucapkan?", cat: "love" },
-
-    // ✨ Mimpi
-    { q: "Kalau kita bisa liburan ke mana aja, kamu mau ke mana?", cat: "dream" },
-    { q: "Seperti apa rumah impian kita menurut kamu?", cat: "dream" },
-    { q: "Apa mimpi terbesar kamu yang belum tercapai?", cat: "dream" },
-    { q: "Kamu mau punya berapa anak? Nama-namanya apa?", cat: "dream" },
-    { q: "Kalau kita bisa tinggal di negara manapun, dimana?", cat: "dream" },
-    { q: "Apa satu hal yang ingin kita lakukan bersama sebelum tahun depan?", cat: "dream" },
-    { q: "Gimana versi ideal quality time kita menurut kamu?", cat: "dream" },
-    { q: "Apa bucket list couple kita yang belum terwujud?", cat: "dream" },
-
-    // 📸 Kenangan  
-    { q: "Apa kesan pertama kamu tentang aku?", cat: "memory" },
-    { q: "Momen paling lucu yang pernah kita alami bareng apa?", cat: "memory" },
-    { q: "Ceritakan kencan paling berkesan kita!", cat: "memory" },
-    { q: "Apa pertengkaran paling konyol yang pernah kita alami?", cat: "memory" },
-    { q: "Momen apa yang bikin kamu nangis bahagia bareng aku?", cat: "memory" },
-    { q: "Apa hadiah dari aku yang paling kamu suka?", cat: "memory" },
-    { q: "Ceritakan momen paling memalukan kita berdua!", cat: "memory" },
-    { q: "Kapan terakhir kali kamu merasa super bangga sama aku?", cat: "memory" },
-
-    // 💭 Deep Talk
-    { q: "Apa ketakutan terbesar kamu dalam hubungan ini?", cat: "deep" },
-    { q: "Hal apa yang belum pernah kamu ceritakan ke aku?", cat: "deep" },
-    { q: "Apa hal yang ingin kamu ubah dari hubungan kita?", cat: "deep" },
-    { q: "Bagaimana cara kamu mengatasi rasa cemburu?", cat: "deep" },
-    { q: "Apa definisi kesetiaan menurut kamu?", cat: "deep" },
-    { q: "Kalau kita sedang berantem, apa yang paling kamu butuhkan?", cat: "deep" },
-    { q: "Apa insecurity terbesar kamu saat ini?", cat: "deep" },
-    { q: "Menurut kamu, apa yang bikin hubungan kita beda dari yang lain?", cat: "deep" },
-
-    // 😂 Seru
-    { q: "Kalau aku jadi binatang, aku jadi binatang apa menurut kamu?", cat: "fun" },
-    { q: "Tirukan gaya aku waktu lagi marah! 😡", cat: "fun" },
-    { q: "Apa kebiasaan aku yang paling aneh menurut kamu?", cat: "fun" },
-    { q: "Kalau kita tukeran tubuh 1 hari, apa yang pertama kamu lakukan?", cat: "fun" },
-    { q: "Sebutkan lagu yang mengingatkan kamu sama aku!", cat: "fun" },
-    { q: "Ceritakan jokes yang bisa bikin aku ketawa!", cat: "fun" },
-    { q: "Apa makanan favorite aku? (Jawab jujur, jangan nebak!)", cat: "fun" },
-    { q: "Kalau aku punya superpower, kekuatan apa yang cocok buat aku?", cat: "fun" },
-
-    // 🔥 Spicy
-    { q: "Apa penampilan aku yang paling bikin kamu tergoda?", cat: "spicy" },
-    { q: "Di mana tempat paling berani yang pernah kita ciuman?", cat: "spicy" },
-    { q: "Apa fantasi date malam yang belum pernah kita coba?", cat: "spicy" },
-    { q: "Bagian tubuh aku mana yang paling kamu suka?", cat: "spicy" },
-    { q: "Apa aroma parfum aku yang paling bikin kamu lemah?", cat: "spicy" },
-    { q: "Truth or Dare: Pilih satu! (Pasangan yang menentukan)", cat: "spicy" },
-    { q: "Kalau kamu bisa merencanakan malam romantis sempurna, seperti apa?", cat: "spicy" },
-    { q: "Apa hal paling menggoda yang pernah aku lakukan tanpa sadar?", cat: "spicy" },
-];
+import React, { useState, useEffect } from 'react';
 
 function CoupleCards({ onBack }) {
+    const [categories, setCategories] = useState([]);
+    const [questions, setQuestions] = useState([]);
     const [currentCard, setCurrentCard] = useState(null);
     const [isFlipping, setIsFlipping] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [usedIndices, setUsedIndices] = useState([]);
     const [cardCount, setCardCount] = useState(0);
+    const [isManaging, setIsManaging] = useState(false);
+    const [loading, setLoading] = useState(true);
+
+    // Form state for management
+    const [editingCard, setEditingCard] = useState(null);
+    const [newQuestion, setNewQuestion] = useState('');
+    const [newCategory, setNewCategory] = useState('');
+
+    // Search and Filter state
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filterCategory, setFilterCategory] = useState('all');
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    const fetchData = async () => {
+        try {
+            const res = await fetch('/api/cards');
+            const data = await res.json();
+            setCategories(data.categories || []);
+            setQuestions(data.questions || []);
+            if (data.categories?.length > 0) setNewCategory(data.categories[0].id);
+            setLoading(false);
+        } catch (e) {
+            console.error("Failed to fetch cards", e);
+            setLoading(false);
+        }
+    };
+
+    const saveData = async (updatedQuestions) => {
+        try {
+            await fetch('/api/cards', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ categories, questions: updatedQuestions })
+            });
+            setQuestions(updatedQuestions);
+        } catch (e) {
+            console.error("Failed to save cards", e);
+            alert("Gagal menyimpan perubahan!");
+        }
+    };
 
     const drawCard = () => {
-        if (isFlipping) return;
+        if (isFlipping || questions.length === 0) return;
 
-        const filtered = QUESTIONS
+        const filtered = questions
             .map((q, i) => ({ ...q, idx: i }))
             .filter(q => !usedIndices.includes(q.idx))
             .filter(q => !selectedCategory || q.cat === selectedCategory);
 
         if (filtered.length === 0) {
             setUsedIndices([]);
-            drawCard();
+            // Force a reset and draw if we just ran out
+            setTimeout(drawCard, 0);
             return;
         }
 
@@ -104,11 +79,148 @@ function CoupleCards({ onBack }) {
         }, 600);
     };
 
-    const getCategoryInfo = (catId) => CATEGORIES.find(c => c.id === catId);
+    const getCategoryInfo = (catId) => categories.find(c => c.id === catId);
+
+    const handleAddCard = () => {
+        if (!newQuestion.trim()) return;
+        const updated = [...questions, { q: newQuestion, cat: newCategory }];
+        saveData(updated);
+        setNewQuestion('');
+    };
+
+    const handleDeleteCard = (idx) => {
+        if (!confirm("Hapus kartu ini?")) return;
+        const updated = questions.filter((_, i) => i !== idx);
+        saveData(updated);
+    };
+
+    const handleStartEdit = (q, idx) => {
+        setEditingCard({ ...q, idx });
+    };
+
+    const handleSaveEdit = () => {
+        if (!editingCard.q.trim()) return;
+        const updated = questions.map((q, i) => i === editingCard.idx ? { q: editingCard.q, cat: editingCard.cat } : q);
+        saveData(updated);
+        setEditingCard(null);
+    };
+
+    // Filtered questions for the management list
+    const filteredQuestions = questions
+        .map((q, i) => ({ ...q, originalIdx: i }))
+        .filter(q => {
+            const matchesSearch = q.q.toLowerCase().includes(searchQuery.toLowerCase());
+            const matchesCategory = filterCategory === 'all' || q.cat === filterCategory;
+            return matchesSearch && matchesCategory;
+        });
+
+    if (loading) return <div className="game-wrapper"><div className="cc-game">Loading...</div></div>;
+
+    if (isManaging) {
+        return (
+            <div className="game-wrapper">
+                <div className="manage-header-section">
+                    <button className="back-button" onClick={() => setIsManaging(false)}>
+                        <span className="icon">←</span> Kembali ke Game
+                    </button>
+                    <h2 className="manage-page-title">🗂️ Management Kartu</h2>
+                </div>
+
+                <div className="cc-game manage-cards">
+                    <div className="manage-form card-glass">
+                        <h3>{editingCard ? '📝 Edit Kartu' : '➕ Tambah Kartu Baru'}</h3>
+                        <div className="form-group">
+                            <textarea
+                                value={editingCard ? editingCard.q : newQuestion}
+                                onChange={(e) => editingCard ? setEditingCard({ ...editingCard, q: e.target.value }) : setNewQuestion(e.target.value)}
+                                placeholder="Masukkan pertanyaan..."
+                                className="manage-input"
+                            />
+                        </div>
+                        <div className="form-group row">
+                            <select
+                                value={editingCard ? editingCard.cat : newCategory}
+                                onChange={(e) => editingCard ? setEditingCard({ ...editingCard, cat: e.target.value }) : setNewCategory(e.target.value)}
+                                className="manage-select"
+                            >
+                                {categories.map(cat => (
+                                    <option key={cat.id} value={cat.id}>{cat.label}</option>
+                                ))}
+                            </select>
+                            <div className="form-actions">
+                                {editingCard ? (
+                                    <>
+                                        <button className="cc-next-btn save-btn" onClick={handleSaveEdit}>Simpan</button>
+                                        <button className="cc-next-btn cancel-btn" onClick={() => setEditingCard(null)}>Batal</button>
+                                    </>
+                                ) : (
+                                    <button className="cc-next-btn" onClick={handleAddCard}>Tambah Kartu</button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="manage-list-header">
+                        <h3>Daftar Kartu ({filteredQuestions.length})</h3>
+                        <div className="list-controls">
+                            <div className="search-box">
+                                <span className="search-icon">🔍</span>
+                                <input
+                                    type="text"
+                                    placeholder="Cari pertanyaan..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="search-input"
+                                />
+                            </div>
+                            <select
+                                value={filterCategory}
+                                onChange={(e) => setFilterCategory(e.target.value)}
+                                className="filter-select"
+                            >
+                                <option value="all">Semua Kategori</option>
+                                {categories.map(cat => (
+                                    <option key={cat.id} value={cat.id}>{cat.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="manage-list">
+                        <div className="card-list-container">
+                            {filteredQuestions.length > 0 ? (
+                                filteredQuestions.map((q) => (
+                                    <div key={q.originalIdx} className="manage-item card-glass">
+                                        <div className="item-info">
+                                            <span className="item-cat" style={{ color: getCategoryInfo(q.cat)?.color }}>
+                                                {getCategoryInfo(q.cat)?.label}
+                                            </span>
+                                            <p className="item-q">{q.q}</p>
+                                        </div>
+                                        <div className="item-actions">
+                                            <button className="action-btn edit" onClick={() => handleStartEdit(q, q.originalIdx)}>✏️</button>
+                                            <button className="action-btn delete" onClick={() => handleDeleteCard(q.originalIdx)}>🗑️</button>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="no-results card-glass">
+                                    <p>Tidak ada kartu yang ditemukan.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="game-wrapper">
-            <button className="back-button" onClick={onBack}>← Back to Dashboard</button>
+            <div className="cc-top-btns">
+                <button className="back-button" onClick={onBack}>← Back to Dashboard</button>
+                <button className="manage-btn" onClick={() => setIsManaging(true)}>⚙️ Manage Cards</button>
+            </div>
 
             <div className="cc-game">
                 <div className="cc-header">
@@ -123,7 +235,7 @@ function CoupleCards({ onBack }) {
                     >
                         🎲 Semua
                     </button>
-                    {CATEGORIES.map(cat => (
+                    {categories.map(cat => (
                         <button
                             key={cat.id}
                             className={`cc-cat-btn ${selectedCategory === cat.id ? 'active' : ''}`}
@@ -156,7 +268,7 @@ function CoupleCards({ onBack }) {
 
                 <div className="cc-stats">
                     <span>Kartu ditarik: {cardCount}</span>
-                    <span>Sisa: {QUESTIONS.filter(q => !selectedCategory || q.cat === selectedCategory).length - usedIndices.filter(i => !selectedCategory || QUESTIONS[i]?.cat === selectedCategory).length}</span>
+                    <span>Sisa: {questions.filter(q => !selectedCategory || q.cat === selectedCategory).length - usedIndices.filter(i => !selectedCategory || questions[i]?.cat === selectedCategory).length}</span>
                 </div>
 
                 {currentCard && (
