@@ -25,13 +25,13 @@ const GAMES = [
         color: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%)'
     },
     {
-        id: 'coming-soon',
-        title: 'Coming Soon',
-        description: 'More exciting games are on the way...',
+        id: 'ludo',
+        title: 'Couple Ludo',
+        description: 'Deep Talk & Truth or Dare board game! 🎲',
         image: '',
-        color: 'linear-gradient(135deg, #232526 0%, #414345 100%)',
-        disabled: true
-    }
+        emoji: '🎲💕',
+        color: 'linear-gradient(135deg, #8b2252 0%, #d4667a 100%)'
+    },
 ];
 
 function Dashboard({ onSelectGame }) {

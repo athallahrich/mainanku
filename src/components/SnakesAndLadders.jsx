@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 const LADDERS = { 2: 18, 5: 16, 19: 36, 23: 43, 35: 54, 44: 57, 53: 74, 64: 77, 84: 97 };
 const SNAKES = { 27: 14, 46: 25, 56: 33, 68: 47, 73: 52, 88: 69, 93: 72, 95: 76 };
 
-const CHALLENGES = {
+const INITIAL_CHALLENGES = {
     1: { text: "START - Mulai Dengan Berdoa 🙏", duration: 0, type: "start", icon: "🙏" },
     2: { text: "Cium Kening dari Pasangan Penuh Sayang", duration: 0, type: "action", icon: "😘" },
     5: { text: 'Ucapkan "I Love You"', duration: 0, type: "love", icon: "❤️" },
@@ -189,8 +189,29 @@ function SnakesAndLadders({ onBack }) {
     const [challengeHistory, setChallengeHistory] = useState([]);
     const [showChallengePopup, setShowChallengePopup] = useState(false);
 
+    // Persistence & Config State
+    const [userChallenges, setUserChallenges] = useState(() => {
+        const saved = localStorage.getItem('sal_challenges');
+        return saved ? JSON.parse(saved) : INITIAL_CHALLENGES;
+    });
+    const [showConfigModal, setShowConfigModal] = useState(false);
+    const [editTile, setEditTile] = useState('');
+    const [editItem, setEditItem] = useState({ text: '', duration: 0, icon: '🔥', type: 'action' });
+
     // Load game state on mount
     useEffect(() => {
+        // Fetch challenges from local API
+        (async () => {
+            try {
+                let r = await fetch('/api/cards');
+                if (!r.ok) r = await fetch('/questions.json');
+                const d = await r.json();
+                if (d.snakes_challenges && Object.keys(d.snakes_challenges).length > 0) {
+                    setUserChallenges(d.snakes_challenges);
+                    localStorage.setItem('sal_challenges', JSON.stringify(d.snakes_challenges));
+                }
+            } catch (e) { console.error(e); }
+        })();
         const saved = localStorage.getItem('sal_game_state');
         if (saved) {
             try {
@@ -233,6 +254,48 @@ function SnakesAndLadders({ onBack }) {
         };
         localStorage.setItem('sal_game_state', JSON.stringify(state));
     }, [gameStarted, players, currentPlayer, diceValue, activeChallenge, timer, winner, message, selectingPlayer, challengeHistory, showChallengePopup]);
+
+    // Save configuration to disk
+    const saveToDisk = async (key, data) => {
+        try {
+            let r = await fetch('/api/cards');
+            if (!r.ok) r = await fetch('/questions.json');
+            const d = await r.json();
+            d[key] = data;
+            await fetch('/api/cards', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(d)
+            });
+        } catch (e) { console.error("Failed to save to disk", e); }
+    };
+
+    const saveChallengeConfig = () => {
+        const tileNum = parseInt(editTile, 10);
+        if (isNaN(tileNum) || tileNum < 2 || tileNum > 99) {
+            alert("Nomor tile tidak valid! Masukkan angka antara 2-99.");
+            return;
+        }
+        if (!editItem.text.trim()) return;
+
+        const updated = { ...userChallenges };
+        updated[tileNum] = { ...editItem };
+        setUserChallenges(updated);
+        localStorage.setItem('sal_challenges', JSON.stringify(updated));
+        saveToDisk('snakes_challenges', updated);
+
+        setEditItem({ text: '', duration: 0, icon: '🔥', type: 'action' });
+        setEditTile('');
+    };
+
+    const deleteChallengeConfig = (tile) => {
+        if (!confirm(`Hapus tantangan di kotak ${tile}?`)) return;
+        const updated = { ...userChallenges };
+        delete updated[tile];
+        setUserChallenges(updated);
+        localStorage.setItem('sal_challenges', JSON.stringify(updated));
+        saveToDisk('snakes_challenges', updated);
+    };
 
     const selectCharacter = (char) => {
         setPlayers(prev => prev.map((p, i) =>
@@ -381,9 +444,9 @@ function SnakesAndLadders({ onBack }) {
 
     const checkChallenge = (pos) => {
         setIsMoving(false);
-        if (CHALLENGES[pos] && CHALLENGES[pos].type !== 'start' && CHALLENGES[pos].type !== 'winner') {
-            setActiveChallenge(CHALLENGES[pos]);
-            if (CHALLENGES[pos].duration > 0) setTimer(CHALLENGES[pos].duration);
+        if (userChallenges[pos] && userChallenges[pos].type !== 'start' && userChallenges[pos].type !== 'winner') {
+            setActiveChallenge(userChallenges[pos]);
+            if (userChallenges[pos].duration > 0) setTimer(userChallenges[pos].duration);
             setMessage(`Challenge untuk ${players[currentPlayer].name}!`);
         } else {
             setCurrentPlayer(p => (p + 1) % 2);
@@ -411,7 +474,7 @@ function SnakesAndLadders({ onBack }) {
             for (let gc = 0; gc < 10; gc++) {
                 const n = getCellNumber(gr, gc);
                 const isDark = (gr + gc) % 2 === 0;
-                const ch = CHALLENGES[n];
+                const ch = userChallenges[n];
                 const hasSnake = SNAKES[n];
                 const hasLadder = LADDERS[n];
                 const playersHere = players.filter(p => p.position === n);
@@ -508,7 +571,10 @@ function SnakesAndLadders({ onBack }) {
         <div className="game-wrapper">
             <div className="sal-top-btns">
                 <button className="back-button" onClick={onBack}>← Back to Dashboard</button>
-                <button className="sal-reset-top" onClick={resetGame}>🔄 Reset Game</button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="sal-reset-top" onClick={() => setShowConfigModal(true)} style={{ background: 'rgba(255, 255, 255, 0.1)' }} title="Atur Tantangan">⚙️ Manage</button>
+                    <button className="sal-reset-top" onClick={resetGame}>🔄 Reset Game</button>
+                </div>
             </div>
             <div className="sal-game">
                 <div className="sal-board-wrap">
@@ -605,6 +671,78 @@ function SnakesAndLadders({ onBack }) {
                         <h3>{winner.name} MENANG!</h3>
                         <p>Selamat! Ucapkan cinta anda ❤️</p>
                         <button className="sal-reset" onClick={resetGame}>🔄 Main Lagi</button>
+                    </div>
+                </div>
+            )}
+
+            {showConfigModal && (
+                <div className="sal-overlay-bg">
+                    <div className="sal-popup ludo-config-modal">
+                        <button className="sal-close-ch" onClick={() => setShowConfigModal(false)}>×</button>
+                        <h3 style={{ marginBottom: '1.5rem', color: '#fff' }}>⚙️ Pengaturan Ular Tangga</h3>
+
+                        <div className="ludo-config-list" style={{ maxHeight: '250px' }}>
+                            {Object.entries(userChallenges).sort((a, b) => parseInt(a[0]) - parseInt(b[0])).map(([tile, item]) => {
+                                if (item.type === 'start' || item.type === 'winner') return null;
+                                return (
+                                    <div key={tile} className="ludo-config-item" style={{ padding: '0.8rem' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '40px' }}>
+                                            <span style={{ fontWeight: 'bold', width: '30px' }}>{tile}.</span>
+                                        </div>
+                                        <span className="ludo-config-text" style={{ flexGrow: 1, textAlign: 'left' }}>
+                                            {item.icon} {item.text} {item.duration > 0 ? `(${item.duration}s)` : ''}
+                                        </span>
+                                        <div className="ludo-config-item-acts">
+                                            <button onClick={() => {
+                                                setEditTile(tile);
+                                                setEditItem({ ...item });
+                                            }}>✏️</button>
+                                            <button onClick={() => deleteChallengeConfig(tile)}>🗑️</button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div className="ludo-config-editor" style={{ marginTop: '1rem' }}>
+                            <div style={{ display: 'flex', gap: '1rem', width: '100%' }}>
+                                <input
+                                    type="number"
+                                    placeholder="Kotak (2-99)"
+                                    value={editTile}
+                                    onChange={(e) => setEditTile(e.target.value)}
+                                    style={{ flex: 1, padding: '0.8rem', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Ikon (contoh: 💋)"
+                                    value={editItem.icon}
+                                    onChange={(e) => setEditItem({ ...editItem, icon: e.target.value })}
+                                    style={{ flex: 1, padding: '0.8rem', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}
+                                />
+                            </div>
+                            <textarea
+                                value={editItem.text}
+                                onChange={(e) => setEditItem({ ...editItem, text: e.target.value })}
+                                placeholder="Teks tantangan (contoh: 30 Detik - Hot Kiss)"
+                                style={{ width: '100%', padding: '1rem', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', minHeight: '60px' }}
+                            />
+                            <div className="ludo-dare-opts">
+                                <input
+                                    type="number"
+                                    placeholder="Durasi (detik, 0 jika tidak ada)"
+                                    value={editItem.duration}
+                                    onChange={(e) => setEditItem({ ...editItem, duration: parseInt(e.target.value) || 0 })}
+                                    style={{ width: '100%' }}
+                                />
+                            </div>
+                            <div className="ludo-config-acts">
+                                <button className="ludo-save-btn" onClick={saveChallengeConfig} style={{ flex: 2 }}>
+                                    {editTile && userChallenges[editTile] ? 'Update' : 'Tambah'}
+                                </button>
+                                <button className="ludo-cancel-btn" style={{ flex: 1 }} onClick={() => { setEditTile(''); setEditItem({ text: '', duration: 0, icon: '🔥', type: 'action' }); }}>Batal</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

@@ -3,6 +3,7 @@ import Dashboard from './components/Dashboard';
 import BeanBoozled from './components/BeanBoozled';
 import SnakesAndLadders from './components/SnakesAndLadders';
 import CoupleCards from './components/CoupleCards';
+import LudoGame from './components/LudoGame';
 import './index.css';
 
 function App() {
@@ -30,6 +31,10 @@ function App() {
 
       {activeGame === 'couple-cards' && (
         <CoupleCards onBack={() => setActiveGame('dashboard')} />
+      )}
+
+      {activeGame === 'ludo' && (
+        <LudoGame onBack={() => setActiveGame('dashboard')} />
       )}
     </div>
   );
